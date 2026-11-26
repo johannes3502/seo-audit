@@ -36,8 +36,8 @@ separate extension. The core must stay applicable to any repository.
 - Keep the scanner conservative: low concurrency, no bypassing bot protection,
   no crawling behind logins.
 - No direct Google SERP scraping. Use a licensed API and say so.
-- Keep user-facing scanner messages in English. The agent translates the report
-  into the user's language.
+- Keep user-facing scanner messages short and neutral. They may be German or
+  English; the agent translates the report into the user's language.
 
 ## Pull requests
 
