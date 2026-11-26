@@ -10,7 +10,7 @@ implements approved fixes.
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Agent Skills](https://img.shields.io/badge/agent--skills-compatible-6f42c1.svg)](https://agentskills.io/)
 
-> Status: `v0.3.0` — a developer tool, not a hosted SEO product. No API key, no
+> Status: `v0.3.1` — a developer tool, not a hosted SEO product. No API key, no
 > cloud account, no black-box score.
 
 ## Who it is for

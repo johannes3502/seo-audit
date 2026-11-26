@@ -1,10 +1,10 @@
-# SEO Audit â€” example-gastro.de
+# SEO Audit — example-gastro.de
 
 **Verdict:** The site is crawlable, but the menu and reservation templates share
 titles, the location pages are orphaned, and the reservation page is missing a
 canonical. Fix the template and internal linking before writing new content.
 
-**Scope:** 18 of ~42 pages Â· 2026-11-20 Â· static HTML Â· sample report
+**Scope:** 18 of ~42 pages · 2026-11-20 · static HTML · sample report
 
 ## 1. Top 10 fixes
 
@@ -59,7 +59,7 @@ canonical. Fix the template and internal linking before writing new content.
 
 ## 7. Search Console quick wins
 
-- 14 queries in position 4â€“15 with â‰¥50 impressions.
+- 14 queries in position 4–15 with ≥50 impressions.
 - `/speisekarte` has 8,200 impressions and 1.1% CTR at position 6.
 - "tisch reservieren <ort>" appears with two competing pages.
 
@@ -73,9 +73,9 @@ required.
 
 | Window | Focus | Done when |
 |---|---|---|
-| 0â€“30 days | canonical, noindex, orphan links | top 5 closed |
-| 30â€“60 days | menu template, titles, descriptions | 12 pages unique |
-| 60â€“90 days | LCP/CLS, LocalBusiness schema, GSC CTR test | measured |
+| 0–30 days | canonical, noindex, orphan links | top 5 closed |
+| 30–60 days | menu template, titles, descriptions | 12 pages unique |
+| 60–90 days | LCP/CLS, LocalBusiness schema, GSC CTR test | measured |
 
 ## 10. Method and limits
 

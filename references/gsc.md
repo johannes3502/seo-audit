@@ -80,7 +80,7 @@ Do not guess. A wrong string produces `403` or `404`, not an empty result.
 | Search Analytics queries per minute per site | 1,200 |
 | URL Inspection per day per site | 2,000 |
 | URL Inspection per minute per site | 600 |
-| Data freshness | typically 2â€“3 days delayed |
+| Data freshness | typically 2–3 days delayed |
 | History | 16 months |
 | Filters | AND only, no OR groups |
 | Rare queries | omitted by Google |
@@ -90,13 +90,13 @@ date range, drop dimensions, or split by page/query.
 
 ## What to compute
 
-- **Quick wins:** position 4â€“15, impressions â‰¥ 50, sorted by impressions.
+- **Quick wins:** position 4–15, impressions ≥ 50, sorted by impressions.
 - **CTR gaps:** observed CTR well below the position benchmark; treat the
   benchmark as a heuristic.
 - **Cannibalization:** one query, multiple pages with meaningful impressions.
 - **Content decay:** clicks/impressions down period-over-period for the same
   page.
-- **Index sample:** URL Inspection for the top 20â€“50 pages, not all pages.
+- **Index sample:** URL Inspection for the top 20–50 pages, not all pages.
 
 ## Safety rules for agents
 

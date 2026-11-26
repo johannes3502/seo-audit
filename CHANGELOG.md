@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 — 2026-11-26
+
+- Fixed UTF-8 text that had been double-encoded in `SKILL.md`, the example
+  report and the GSC reference. No scanner or rule behavior changed.
+- Crawler user agent now identifies itself as `seo-audit/0.3.1`.
+
 ## 0.3.0 — 2026-11-26
 
 First public release as a single-skill repository. No behaviour change in the

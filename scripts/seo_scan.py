@@ -29,7 +29,7 @@ from typing import Any
 
 VERSION = "0.2.4"
 TOOL_NAME = "seo-audit"
-DEFAULT_UA = "seo-audit/0.3 (+https://github.com/johannes3502/seo-audit)"
+DEFAULT_UA = "seo-audit/0.3.1 (+https://github.com/johannes3502/seo-audit)"
 MAX_BYTES = 2 * 1024 * 1024
 SEVERITY_WEIGHT = {"critical": 10, "high": 5, "medium": 2, "low": 1, "info": 0}
 AI_BOTS = ("GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended")

@@ -56,9 +56,9 @@ Security and collaboration:
 ## First release
 
 ```bash
-git tag -a v0.3.0 -m "v0.3.0"
-git push origin v0.3.0
-gh release create v0.3.0 --title "v0.3.0" --notes-file CHANGELOG.md
+git tag -a v0.3.1 -m "v0.3.1"
+git push origin v0.3.1
+gh release create v0.3.1 --title "v0.3.1" --notes-file CHANGELOG.md
 ```
 
 ## Kilo Marketplace
