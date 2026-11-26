@@ -1,0 +1,56 @@
+name: Bug report
+description: Something in the scanner or the skill workflow is broken.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste customer data, private URLs, tokens or generated reports.
+        For a security issue, use private vulnerability reporting instead.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.3.0 or a commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - repo_scan.py
+        - seo_scan.py
+        - gsc_quick_wins.py
+        - validate_skill.py
+        - SKILL.md workflow
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: The exact command you ran, with private values redacted.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: Windows 11, Python 3.13, Kilo 7.x

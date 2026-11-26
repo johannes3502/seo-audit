@@ -1,0 +1,39 @@
+name: False positive
+description: A finding is wrong, over-severe or based on a heuristic that does not apply.
+title: "[false positive] "
+labels: ["false positive"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A minimal reproduction is the fastest way to fix this. Redact domains,
+        customer names and private paths.
+  - type: input
+    id: rule
+    attributes:
+      label: Rule ID
+      placeholder: csr-shell, noindex, hreflang-missing, ...
+    validations:
+      required: true
+  - type: input
+    id: severity
+    attributes:
+      label: Reported severity
+      placeholder: high
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Why it is a false positive
+      description: File, route or HTML excerpt that shows the scanner is wrong.
+    validations:
+      required: true
+  - type: textarea
+    id: fixture
+    attributes:
+      label: Minimal fixture
+      description: Smallest file tree or HTML that reproduces it.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit

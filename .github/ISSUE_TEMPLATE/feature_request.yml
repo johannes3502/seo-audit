@@ -1,0 +1,31 @@
+name: Feature request
+description: A new rule, framework adapter or workflow improvement.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can the skill not do today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Include a rule ID, evidence fields and a false-positive case if this is a rule.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: This is generic and applies to any repository, not one customer.
+          required: true
+        - label: I can provide a fixture or a reproducible example.

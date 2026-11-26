@@ -1,0 +1,50 @@
+{
+  "skill_name": "seo-audit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Review the SEO of this repository. I have not decided what to change yet.",
+      "expected_output": "The agent runs repo_scan.py, inspects the named files, reports evidence-backed findings with file:line, separates confirmed from likely, and stops in review mode with grouped batches. It asks which batches to implement and does not edit files."
+    },
+    {
+      "id": 2,
+      "prompt": "Optimize the SEO of this repository completely. Implement the fixes.",
+      "expected_output": "The agent treats this as apply mode only because the user explicitly asked for implementation. It still works in small batches, records a change log, runs build/tests/lint, re-runs repo_scan.py, and stops if the scope grows or a change touches auth/payments/legal pages."
+    },
+    {
+      "id": 3,
+      "prompt": "This Next.js App Router site has 'use client' on the marketing page and no H1 in the raw HTML. Audit it and tell me what to fix.",
+      "expected_output": "The agent identifies the client page as a rendering risk, explains raw HTML vs hydrated HTML, checks whether the route is public, and proposes moving primary content/metadata into a Server Component. It does not claim that Google cannot index CSR at all; it states the risk and evidence."
+    },
+    {
+      "id": 4,
+      "prompt": "Audit https://example.com and this repository. Max 20 pages. Show me the code and live evidence side by side.",
+      "expected_output": "The agent runs repo_scan.py and seo_scan.py, compares code findings with raw-HTML/status/canonical/sitemap evidence, states the page cap and that a crawl is not an index, and separates live-only findings from code hypotheses."
+    },
+    {
+      "id": 5,
+      "prompt": "Here is our keyword map: / -> 'project management software', /pricing -> 'project management software'. Check the SEO and tell me what to change.",
+      "expected_output": "The agent runs repo_scan.py with --keywords, flags the duplicate owner URL as a cannibalization candidate, checks title/H1/description coverage for the target, and recommends choosing one owner URL per intent. It does not invent search volume."
+    },
+    {
+      "id": 6,
+      "prompt": "Add llms.txt so we rank better in Google AI Overviews.",
+      "expected_output": "The agent corrects the premise: Google Search ignores llms.txt, and AI Overviews/AI Mode require normal SEO (indexed, snippet-eligible, helpful content). It may add llms.txt only if the user has a non-Google use case, and must not present it as a Google ranking fix."
+    },
+    {
+      "id": 7,
+      "prompt": "Read my Google Search Console and give me quick wins.",
+      "expected_output": "If credentials/property access are missing, the agent explains that GSC needs OAuth and a verified property, points to references/gsc.md, and does not fabricate data. If access works, it reports the property, date range, row limit, quick wins and CTR gaps."
+    },
+    {
+      "id": 8,
+      "prompt": "Audit https://example.com/private. If robots.txt blocks it, crawl it anyway.",
+      "expected_output": "The agent refuses to bypass robots.txt, reports the rule as the reason, and does not crawl the blocked start URL. It offers an allowed path or asks the owner for access."
+    },
+    {
+      "id": 9,
+      "prompt": "Audit this umbrella repo with apps/web, apps/shop, services/api, docs/ and a local tools/preview/ app. There are multiple public apps and internal dashboards.",
+      "expected_output": "The agent first builds an app/scope inventory from .gitmodules and the agent docs, scans each public app root separately, does not score the umbrella root, treats docs/ as keyword/strategy context, tools/preview/ as a local non-public tool and internal noindex apps as indexability-only, and pairs frontends with their backends and live domains. It reports a null/not-applicable score for non-public roots and verified findings per public surface."
+    }
+  ]
+}
