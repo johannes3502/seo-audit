@@ -57,6 +57,19 @@ scan; it does not replace it.
 - [ ] Legal pages that are `noindex` are excluded from the sitemap and treated
       as an intentional policy, not a defect.
 - [ ] Event JSON-LD has no past `endDate` still marked `EventScheduled`.
+- [ ] Event markup is on a dedicated single-event URL, not a homepage/list
+      `ItemList`; organizer and location are real.
+- [ ] `LocalBusiness` NAP (name, address, phone, hours) matches the visible
+      page, imprint and profile; address tokens are visible on the page.
+- [ ] Legal links (imprint, privacy, terms) stay on the same host/entity; a
+      cross-domain legal link is verified, not assumed.
+- [ ] A `Disallow` path is not treated as deindexed; sitemap URLs are crawlable
+      and a `noindex` is on a crawlable URL.
+- [ ] `/index.html` is not a second indexable copy of `/`.
+- [ ] Header/footer are outside `<main>` (banner/contentinfo landmarks).
+- [ ] `og:locale:alternate` has a crawlable alternate URL and hreflang.
+- [ ] `www`/non-www, canonical, sitemap and robots agree on the final host.
+- [ ] Word/script counts are per URL and labeled as raw-HTML counts.
 - [ ] CDN/firewall allows Googlebot and assets.
 
 ## Performance

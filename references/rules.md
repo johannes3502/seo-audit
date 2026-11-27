@@ -159,6 +159,24 @@ choice, not a defect.
 | `log-file-bot-mix` | info | server logs | echte Bot-Besuche prüfen | manual |
 | `deploy-regression` | high | diff before/after | CI-Gate für SEO | manual |
 
+## Local, trust and events (v0.4)
+
+| ID | Severity | Evidence | Fix | Status |
+|---|---|---|---|---|
+| `sitemap-robots-conflict` | high | sitemap URL blocked by robots | remove from sitemap or allow crawling | v0.4 |
+| `index-html-duplicate` | medium | `/index.html` 200 without canonical to `/` | redirect or canonical to `/` | v0.4 |
+| `event-not-leaf-page` | high | >1 Event node or ItemList of Events | one dedicated leaf URL per event, or remove the markup | v0.4 |
+| `event-fields-missing` | medium | Event missing name/startDate/location | add only fields that match the visible event | v0.4 |
+| `event-organizer-cross-host` | low | organizer URL on another host | use the real organizer; do not assign the brand to third-party events | v0.4 |
+| `localbusiness-nap-incomplete` | medium | LocalBusiness missing name/address | add real NAP, consistent with page/GBP | v0.4 |
+| `localbusiness-telephone-missing` | low | no telephone | add the primary phone | v0.4 |
+| `localbusiness-hours-missing` | low | no opening hours | add per-location hours; no blanket 24/7 | v0.4 |
+| `localbusiness-address-not-visible` | low | schema address tokens not on page | show the NAP block; verify entity | v0.4 |
+| `localbusiness-sameas-missing` | info | no sameAs | link GBP/verified profiles; do not invent | v0.4 |
+| `legal-link-cross-domain` | medium | legal link to another host | verify ownership/entity; keep legal pages on the entity | v0.4 |
+| `og-locale-alternate-without-url` | low | `og:locale:alternate` without alternate URL | add locale URL + hreflang or remove the claim | v0.4 |
+| `landmark-nesting` | low | header/footer inside `<main>` | move site chrome outside `<main>` | v0.4 |
+
 ## Adding a rule
 
 1. Pick a stable ID (kebab-case, no version suffix).

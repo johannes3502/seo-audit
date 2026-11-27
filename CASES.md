@@ -100,6 +100,29 @@ preview tool produced a 0/100 site score and 174 mixed findings before 0.2.4.
 - **Lesson:** an umbrella root is not a website. Report the inventory, not a
   score.
 
+## 6. Local rental business — technical pass, local blind spot
+
+An agent review of a local rental business found the technical issues (stale
+Event dates, client-only language switch, canonical inheritance, missing 404
+body, www/TLS error, long description, missing headers) but stopped at
+technical SEO. A second review found:
+
+- Event markup was a multi-event list on the homepage, with third-party events
+  and the wrong organizer; it was not eligible for a rich result at all.
+- The `LocalBusiness` address was an operating station, while the imprint used
+  the registered entity in another city; the phone was missing and the hours
+  claimed 24/7 for every location.
+- The footer linked to another brand's imprint, and the site's own imprint was
+  a 404.
+- `Disallow` paths still inherited `index, follow` and a homepage canonical;
+  a `noindex` page sat behind a disallowed path.
+- `/index.html` returned 200, the sitemap `lastmod` was the build time, and
+  `hreflang-missing` was a false positive because the language toggle had no
+  locale URL.
+
+Lesson: a technical pass is not a local business audit. Read `local.md` and
+`trust.md`, verify the entity data, and decide Event eligibility per page.
+
 ## What these cases do not prove
 
 - They do not prove indexing or ranking.

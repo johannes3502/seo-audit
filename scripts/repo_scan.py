@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-VERSION = "0.2.4"
+VERSION = "0.4.0"
 TOOL_NAME = "seo-audit-repo"
 
 SEVERITY_WEIGHT = {"critical": 10, "high": 5, "medium": 2, "low": 1, "info": 0}
@@ -911,6 +911,18 @@ def collect_jsonld_types(items: list[dict[str, Any]]) -> list[str]:
     return sorted(set(found))
 
 
+def has_jsonld_type(value: Any, name: str) -> bool:
+    if isinstance(value, dict):
+        raw = value.get("@type")
+        types = [raw] if isinstance(raw, str) else raw if isinstance(raw, list) else []
+        if name in types:
+            return True
+        return any(has_jsonld_type(child, name) for child in value.values())
+    if isinstance(value, list):
+        return any(has_jsonld_type(child, name) for child in value)
+    return False
+
+
 def extract_metadata(text: str, framework: str) -> dict[str, Any]:
     result: dict[str, Any] = {
         "titles": [],
@@ -1118,6 +1130,36 @@ def analyze_schema(items: list[dict[str, Any]], path: Path, rel: str, issues: li
                     "Add name and PostalAddress; keep NAP consistent with the visible page.",
                     "likely",
                 )
+            recommended = [
+                key for key in ("telephone", "openingHours", "openingHoursSpecification", "sameAs")
+                if not item.get(key)
+            ]
+            if recommended:
+                add_issue(
+                    issues, "schema-localbusiness-recommended", "low", "structured-data",
+                    "LocalBusiness JSON-LD is missing recommended fields: " + ", ".join(recommended) + ".",
+                    rel, 0, {"types": types, "missing": recommended},
+                    "Add the real phone, hours and verified profile links; keep them identical to the visible NAP block and business profile.",
+                    "likely",
+                )
+        if "Event" in types:
+            missing = [key for key in ("name", "startDate", "location") if not item.get(key)]
+            if missing:
+                add_issue(
+                    issues, "schema-event-fields", "medium", "structured-data",
+                    "Event JSON-LD is missing required fields: " + ", ".join(missing) + ".",
+                    rel, 0, {"types": types, "missing": missing},
+                    "Add name, startDate and location only when they match the visible event; move each event to its own URL.",
+                    "likely",
+                )
+        if "ItemList" in types and has_jsonld_type(item.get("itemListElement"), "Event"):
+            add_issue(
+                issues, "schema-event-list", "medium", "structured-data",
+                "An ItemList contains Event nodes.",
+                rel, 0, {"types": types},
+                "Google's Event rich result expects a dedicated page per event; remove the Event list markup or create single-event pages.",
+                "likely",
+            )
         if "FAQPage" in types:
             main = item.get("mainEntity")
             if not isinstance(main, list) or not main:
@@ -1889,6 +1931,8 @@ def scan(
     seen_routes: set[str] = set()
     mapped_routes = {route for variants in route_map.values() for route in variants}
     hreflang_all: list[dict[str, Any]] = []
+    robots_disallow: list[tuple[str, str, int]] = []
+    sitemap_lastmod_flagged = False
     has_sitemap = bool(build.get("sitemap"))
     has_404 = bool(build.get("not_found"))
     has_robots = bool(build.get("robots"))
@@ -1951,6 +1995,11 @@ def scan(
                     "Allow the asset paths required for rendering; block only crawl waste.",
                     "confirmed",
                 )
+            for match in re.finditer(r"(?im)^\s*disallow:\s*(\S+)\s*$", text):
+                path_value = match.group(1).strip()
+                if not path_value or path_value == "/" or path_value.startswith(("/*.", "/_next", "/static", "/assets")):
+                    continue
+                robots_disallow.append((path_value, rel, line_of(text, match)))
             if not re.search(r"(?im)^\s*sitemap:\s*https?://", text):
                 add_issue(
                     issues, "robots-no-sitemap", "low", "indexing",
@@ -1963,8 +2012,18 @@ def scan(
         if name in ("robots.ts", "robots.js", "robots.mjs", "robots.tsx"):
             has_robots = True
 
-        if name.startswith("sitemap") or "next-sitemap" in lower or "@astrojs/sitemap" in lower or "@nuxtjs/sitemap" in lower or "django.contrib.sitemaps" in lower:
+        if "sitemap" in name or "next-sitemap" in lower or "@astrojs/sitemap" in lower or "@nuxtjs/sitemap" in lower or "django.contrib.sitemaps" in lower:
             has_sitemap = True
+        if ("sitemap" in name or "sitemap" in lower) and "lastmod" in lower and not sitemap_lastmod_flagged:
+            if re.search(r"new\s+Date\s*\(\s*\)|Date\.now\s*\(|datetime\.now\s*\(|time\.time\s*\(", text):
+                add_issue(
+                    issues, "sitemap-lastmod-build-time", "low", "indexing",
+                    "Sitemap lastmod appears to use the build time instead of the content modification date.",
+                    rel, line_of(text, re.search(r"lastmod", text, re.I) or 0), {"file": rel},
+                    "Use the page's real last-modified date; a build timestamp marks every URL as changed on every deploy.",
+                    "likely",
+                )
+                sitemap_lastmod_flagged = True
         if name in ("404.html", "404.htm", "404.astro", "not-found.tsx", "not-found.jsx", "not-found.js", "not-found.vue", "error.vue", "+error.svelte"):
             has_404 = True
         if re.search(r"\[\[?\.\.\.", rel):
@@ -2122,7 +2181,15 @@ def scan(
             "likely",
         )
     if i18n and not hreflang_all:
-        if build.get("hreflang_in_sitemap"):
+        if len(route_locales) < 2:
+            add_issue(
+                issues, "client-only-i18n", "info", "internationalization",
+                "Locale files or a language switcher exist, but no crawlable locale URLs were found.",
+                "", 0, {"locales": sorted(locales), "route_locales": sorted(route_locales)},
+                "Do not add hreflang without crawlable alternate URLs. If the site is single-language, document it; if not, add locale routes first.",
+                "confirmed",
+            )
+        elif build.get("hreflang_in_sitemap"):
             add_issue(
                 issues, "hreflang-missing-in-html", "low", "internationalization",
                 "hreflang is only declared in the sitemap, not in the HTML head.",
@@ -2175,6 +2242,54 @@ def scan(
                 "Write a page-specific description for each route.",
                 "confirmed",
             )
+
+    canonical_groups: dict[str, list[dict[str, Any]]] = {}
+    for route_entry in routes:
+        if route_entry.get("private") or route_entry.get("noindex") or not route_entry.get("canonical"):
+            continue
+        canonical = route_entry["canonical"]
+        if any(token in canonical for token in ("${", "{{", "%s")):
+            continue
+        canonical_groups.setdefault(canonical, []).append(route_entry)
+    for canonical, group in canonical_groups.items():
+        if len(group) < 2:
+            continue
+        add_issue(
+            issues, "canonical-shared", "medium", "indexing",
+            f"{len(group)} public routes share the same canonical: {canonical}.",
+            group[0]["file"], 0,
+            {"canonical": canonical, "routes": [item["route"] for item in group][:10]},
+            "Generate a self-referencing canonical per route; do not let a layout default leak to public pages.",
+            "likely",
+        )
+
+    for route_entry in routes:
+        route_path = route_entry.get("route") or ""
+        if not route_path:
+            continue
+        for prefix, robots_rel, robots_line in robots_disallow:
+            base = prefix.rstrip("*")
+            if not base or base == "/" or not route_path.startswith(base):
+                continue
+            if route_entry.get("noindex"):
+                add_issue(
+                    issues, "robots-blocks-noindex", "medium", "indexing",
+                    f"robots.txt disallows {base}, so Google cannot see the noindex on {route_path}.",
+                    route_entry["file"], 0,
+                    {"route": route_path, "robots": f"{robots_rel}:{robots_line}"},
+                    "Allow the URL so the noindex is readable, or protect it with auth; Disallow does not remove it from the index.",
+                    "confirmed",
+                )
+            elif not route_entry.get("private"):
+                add_issue(
+                    issues, "robots-blocks-public-route", "high", "indexing",
+                    f"robots.txt disallows public route {route_path}.",
+                    route_entry["file"], 0,
+                    {"route": route_path, "robots": f"{robots_rel}:{robots_line}"},
+                    "Allow the route, or add noindex if it must stay out of search; do not rely on Disallow.",
+                    "confirmed",
+                )
+            break
 
     keyword_coverage = analyze_keywords(keyword_data, routes, issues)
 

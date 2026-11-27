@@ -27,14 +27,18 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
-VERSION = "0.2.4"
+VERSION = "0.4.0"
 TOOL_NAME = "seo-audit"
-DEFAULT_UA = "seo-audit/0.3.1 (+https://github.com/johannes3502/seo-audit)"
+DEFAULT_UA = "seo-audit/0.4.0 (+https://github.com/johannes3502/seo-audit)"
 MAX_BYTES = 2 * 1024 * 1024
 SEVERITY_WEIGHT = {"critical": 10, "high": 5, "medium": 2, "low": 1, "info": 0}
 AI_BOTS = ("GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended")
 LEGAL_NOINDEX = re.compile(
     r"/(?:agb|avv|datenschutz|datenschutzerklaerung|impressum|imprint|privacy|privacy-policy|terms|terms-of-service|legal|legal-notice|cookies?|widerruf|nutzungsbedingungen)(?:/|$)",
+    re.I,
+)
+LEGAL_LINK_TEXT = re.compile(
+    r"\b(impressum|imprint|legal notice|datenschutz|privacy|agb|terms|widerruf|cookie)\b",
     re.I,
 )
 APP_PATH = re.compile(
@@ -365,6 +369,8 @@ class PageParser(HTMLParser):
         self.jsonld_parts: list[str] = []
         self.jsonld_raw: list[str] = []
         self.in_jsonld = False
+        self.main_depth = 0
+        self.landmarks_in_main: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = {key: (value or "") for key, value in attrs}
@@ -373,6 +379,10 @@ class PageParser(HTMLParser):
             self.lang = values.get("lang", "")
         elif tag == "body":
             self.in_body = True
+        elif tag == "main":
+            self.main_depth += 1
+        elif tag in ("header", "footer") and self.main_depth:
+            self.landmarks_in_main.append(tag)
         elif tag == "title":
             self.in_title = True
         elif tag == "meta":
@@ -428,6 +438,8 @@ class PageParser(HTMLParser):
         tag = tag.lower()
         if tag == "body":
             self.in_body = False
+        elif tag == "main":
+            self.main_depth = max(0, self.main_depth - 1)
         elif tag == "title":
             self.in_title = False
         elif tag == "script":
@@ -597,6 +609,122 @@ def expired_event_nodes(value: Any, today: datetime | None = None) -> list[dict[
     return expired
 
 
+def jsonld_nodes(value: Any, target: list[dict[str, Any]]) -> None:
+    """Collect every JSON-LD object in a parsed document."""
+    if isinstance(value, dict):
+        target.append(value)
+        for child in value.values():
+            jsonld_nodes(child, target)
+    elif isinstance(value, list):
+        for child in value:
+            jsonld_nodes(child, target)
+
+
+def jsonld_type_list(node: dict[str, Any]) -> list[str]:
+    raw = node.get("@type")
+    if isinstance(raw, str):
+        return [raw]
+    if isinstance(raw, list):
+        return [str(item) for item in raw if item]
+    return []
+
+
+LOCAL_BUSINESS_TYPES = {
+    "LocalBusiness", "AnimalShelter", "ArchiveOrganization", "AutomotiveBusiness",
+    "ChildCare", "Dentist", "DryCleaningOrLaundry", "EmergencyService",
+    "EmploymentAgency", "EntertainmentBusiness", "FinancialService",
+    "FoodEstablishment", "GovernmentOffice", "HealthAndBeautyBusiness",
+    "HomeAndConstructionBusiness", "InternetCafe", "LegalService", "Library",
+    "LodgingBusiness", "MedicalBusiness", "ProfessionalService", "RadioStation",
+    "RealEstateAgent", "RecyclingCenter", "SelfStorage", "ShoppingCenter",
+    "SportsActivityLocation", "Store", "TelevisionStation",
+    "TouristInformationCenter", "TravelAgency",
+}
+PHYSICAL_LOCAL_TYPES = {
+    "LocalBusiness", "Store", "Restaurant", "FoodEstablishment", "LodgingBusiness",
+    "AutomotiveBusiness", "HealthAndBeautyBusiness", "SportsActivityLocation",
+    "ShoppingCenter", "SelfStorage", "DryCleaningOrLaundry", "Dentist",
+    "MedicalBusiness", "EntertainmentBusiness", "RecyclingCenter",
+}
+
+
+def event_nodes(value: Any) -> list[dict[str, Any]]:
+    nodes: list[dict[str, Any]] = []
+    jsonld_nodes(value, nodes)
+    return [node for node in nodes if "Event" in jsonld_type_list(node)]
+
+
+def localbusiness_nodes(value: Any) -> list[dict[str, Any]]:
+    nodes: list[dict[str, Any]] = []
+    jsonld_nodes(value, nodes)
+    return [
+        node for node in nodes
+        if any(item in LOCAL_BUSINESS_TYPES for item in jsonld_type_list(node))
+    ]
+
+
+def event_list_has_events(value: Any) -> bool:
+    nodes: list[dict[str, Any]] = []
+    jsonld_nodes(value, nodes)
+    for node in nodes:
+        if "ItemList" not in jsonld_type_list(node):
+            continue
+        children: list[dict[str, Any]] = []
+        jsonld_nodes(node.get("itemListElement"), children)
+        if any("Event" in jsonld_type_list(child) for child in children):
+            return True
+    return False
+
+
+def event_missing_fields(node: dict[str, Any]) -> list[str]:
+    return [
+        key for key in ("name", "startDate", "location")
+        if not node.get(key)
+    ]
+
+
+def event_organizer_hosts(node: dict[str, Any]) -> set[str]:
+    hosts: set[str] = set()
+    organizers = node.get("organizer")
+    if not isinstance(organizers, list):
+        organizers = [organizers]
+    for organizer in organizers:
+        if isinstance(organizer, dict) and organizer.get("url"):
+            hosts.add(host_key(str(organizer["url"])))
+    return hosts
+
+
+def address_visible(address_text: str, page_text: str) -> bool:
+    tokens = [token.lower() for token in re.findall(r"\w{3,}", address_text, re.UNICODE)]
+    if not tokens:
+        return True
+    haystack = page_text.lower()
+    hits = sum(1 for token in tokens if token in haystack)
+    return hits >= max(1, len(tokens) // 2)
+
+
+def localbusiness_summary(node: dict[str, Any]) -> dict[str, Any]:
+    address = node.get("address")
+    address_text = ""
+    if isinstance(address, dict):
+        address_text = " ".join(
+            clean_text(str(address.get(key) or ""))
+            for key in ("streetAddress", "postalCode", "addressLocality", "addressCountry")
+        ).strip()
+    elif isinstance(address, str):
+        address_text = clean_text(address)
+    return {
+        "name": clean_text(str(node.get("name") or "")),
+        "types": jsonld_type_list(node),
+        "telephone": bool(node.get("telephone")),
+        "address": bool(address),
+        "address_text": address_text,
+        "visible_address": True,
+        "hours": bool(node.get("openingHours") or node.get("openingHoursSpecification")),
+        "same_as": bool(node.get("sameAs")),
+    }
+
+
 def meta_content(metas: list[dict[str, str]], key: str) -> str:
     key = key.lower()
     for meta in metas:
@@ -662,6 +790,7 @@ def build_page(
         "images_missing_dimensions": 0,
         "internal_links": [],
         "external_links": 0,
+        "external_anchors": [],
         "jsonld_types": [],
         "jsonld_errors": [],
         "og": {},
@@ -685,6 +814,13 @@ def build_page(
         "content_encoding": header(headers, "content-encoding").lower(),
         "jsonld_faq_questions": [],
         "jsonld_faq_mismatches": [],
+        "jsonld_event_count": 0,
+        "jsonld_event_list": False,
+        "jsonld_event_missing": [],
+        "jsonld_event_organizer_hosts": [],
+        "jsonld_localbusiness": [],
+        "og_locale_alternates": [],
+        "landmarks_in_main": [],
         "hreflang": [],
         "shell_empty": False,
     }
@@ -694,6 +830,7 @@ def build_page(
     page["noscript_h1_count"] = parser.noscript_h1
     page["empty_shell"] = parser.empty_shell
     page["hreflang"] = parser.hreflang
+    page["landmarks_in_main"] = parser.landmarks_in_main
     page["has_inline_css"] = any(
         block["length"] > 500 or "data-seo-inline-css" in block["attrs"]
         for block in parser.style_blocks
@@ -776,6 +913,7 @@ def build_page(
 
     internal: list[dict[str, str]] = []
     external = 0
+    external_anchors: list[dict[str, str]] = []
     for anchor in parser.anchors:
         href = anchor["attrs"].get("href", "").strip()
         if not href or href.startswith("#") or href.lower().startswith(("mailto:", "tel:", "javascript:", "data:")):
@@ -787,8 +925,10 @@ def build_page(
             internal.append({"href": absolute, "text": anchor["text"], "rel": anchor["attrs"].get("rel", "")})
         else:
             external += 1
+            external_anchors.append({"href": absolute, "text": anchor["text"]})
     page["internal_links"] = internal
     page["external_links"] = external
+    page["external_anchors"] = external_anchors
 
     parsed, jsonld_errors = parse_jsonld(parser.jsonld_raw)
     types: list[str] = []
@@ -797,6 +937,27 @@ def build_page(
     page["jsonld_types"] = sorted(set(types))
     page["jsonld_errors"] = jsonld_errors
     page["jsonld_expired_events"] = expired_event_nodes(parsed)
+
+    event_items: list[dict[str, Any]] = []
+    local_items: list[dict[str, Any]] = []
+    for item in parsed:
+        event_items.extend(event_nodes(item))
+        local_items.extend(localbusiness_nodes(item))
+    page["jsonld_event_count"] = len(event_items)
+    page["jsonld_event_list"] = any(event_list_has_events(item) for item in parsed)
+    page["jsonld_event_missing"] = [
+        {"name": clean_text(str(node.get("name") or "")), "missing": event_missing_fields(node)}
+        for node in event_items
+        if event_missing_fields(node)
+    ][:10]
+    organizer_hosts: set[str] = set()
+    for node in event_items:
+        organizer_hosts.update(event_organizer_hosts(node))
+    page["jsonld_event_organizer_hosts"] = sorted(organizer_hosts)
+    local_summaries = [localbusiness_summary(node) for node in local_items][:10]
+    for summary in local_summaries:
+        summary["visible_address"] = address_visible(summary["address_text"], text)
+    page["jsonld_localbusiness"] = local_summaries
 
     faq_questions: list[str] = []
     for item in parsed:
@@ -813,6 +974,11 @@ def build_page(
         for meta in parser.metas
         if meta.get("property", "").lower().startswith("og:")
     }
+    page["og_locale_alternates"] = [
+        clean_text(meta.get("content", ""))
+        for meta in parser.metas
+        if meta.get("property", "").lower() == "og:locale:alternate"
+    ]
     page["twitter"] = {
         meta.get("name", ""): clean_text(meta.get("content", ""))
         for meta in parser.metas
@@ -1079,6 +1245,124 @@ def page_issues(page: dict[str, Any], start_url: str) -> list[dict[str, Any]]:
                   url, {"events": expired_events[:5]},
                   "Vergangene Events entfernen oder eventStatus auf EventCancelled/EventPostponed setzen; nur kommende Events als scheduled auszeichnen.")
 
+    local_context = not legal_path and not intentional_noindex
+    is_start = url_key(url) == url_key(start_url)
+    local_page = is_start or bool(re.search(r"/(?:contact|kontakt|location|locations|standort|standorte|about|ueber-uns|uber-uns|imprint|impressum)(?:/|$)", path, re.I))
+    event_page = is_start or bool(re.search(r"/(?:events?|veranstaltungen?|termine|calendar|kalender)(?:/|$)", path, re.I))
+
+    if local_context:
+        if event_page and (page["jsonld_event_count"] > 1 or page["jsonld_event_list"]):
+            add_issue(
+                issues, "event-not-leaf-page", "high", "structured-data",
+                "Event JSON-LD is on a list page or contains multiple events.",
+                url,
+                {"event_count": page["jsonld_event_count"], "item_list": page["jsonld_event_list"]},
+                "Google's Event rich result expects a dedicated page for one event. Move each event to its own URL or remove the Event markup.",
+                confidence="confirmed",
+            )
+        if event_page and page["jsonld_event_missing"]:
+            add_issue(
+                issues, "event-fields-missing", "medium", "structured-data",
+                f"{len(page['jsonld_event_missing'])} Event node(s) are missing required fields.",
+                url, {"events": page["jsonld_event_missing"][:5]},
+                "Add name, startDate and location only when they match the visible event.",
+            )
+        foreign_organizers = sorted(
+            host for host in page["jsonld_event_organizer_hosts"]
+            if host and host != host_key(url)
+        )
+        if event_page and foreign_organizers:
+            add_issue(
+                issues, "event-organizer-cross-host", "low", "structured-data",
+                "Event organizer URL points to another host.",
+                url, {"organizer_hosts": foreign_organizers},
+                "Use the organizer that actually runs the event; do not assign the site's brand to third-party events.",
+                confidence="likely",
+            )
+
+        incomplete_nap = [b for b in page["jsonld_localbusiness"] if not b["name"] or not b["address"]]
+        if local_page and incomplete_nap:
+            add_issue(
+                issues, "localbusiness-nap-incomplete", "medium", "local",
+                f"{len(incomplete_nap)} LocalBusiness node(s) are missing name or address.",
+                url, {"businesses": incomplete_nap[:5]},
+                "Add the real business name and PostalAddress; keep them identical to the visible NAP block and Google Business Profile.",
+            )
+        missing_phone = [b for b in page["jsonld_localbusiness"] if b["address"] and not b["telephone"]]
+        if local_page and missing_phone:
+            add_issue(
+                issues, "localbusiness-telephone-missing", "low", "local",
+                "LocalBusiness JSON-LD has no telephone.",
+                url, {"businesses": missing_phone[:5]},
+                "Add the primary phone number and keep it identical to the visible NAP block and business profile.",
+            )
+        missing_hours = [
+            b for b in page["jsonld_localbusiness"]
+            if b["address"] and not b["hours"]
+            and any(item in PHYSICAL_LOCAL_TYPES for item in b.get("types", []))
+        ]
+        if local_page and missing_hours:
+            add_issue(
+                issues, "localbusiness-hours-missing", "low", "local",
+                "LocalBusiness JSON-LD has no opening hours.",
+                url, {"businesses": missing_hours[:5]},
+                "Add openingHoursSpecification or openingHours only when they match the real locations; do not claim 24/7 for every location.",
+            )
+        invisible_address = [b for b in page["jsonld_localbusiness"] if b["address"] and not b["visible_address"]]
+        if local_page and invisible_address:
+            add_issue(
+                issues, "localbusiness-address-not-visible", "low", "local",
+                "LocalBusiness address tokens were not found in the visible page text.",
+                url, {"businesses": invisible_address[:5]},
+                "Show the same NAP block on the page and verify it matches the legal entity and business profile.",
+                confidence="likely",
+            )
+        missing_sameas = [b for b in page["jsonld_localbusiness"] if b["address"] and not b["same_as"]]
+        if local_page and missing_sameas:
+            add_issue(
+                issues, "localbusiness-sameas-missing", "info", "local",
+                "LocalBusiness JSON-LD has no sameAs profile links.",
+                url, {"businesses": missing_sameas[:5]},
+                "Add sameAs links to the Google Business Profile and verified social profiles; do not invent profiles.",
+            )
+
+        legal_links = [
+            anchor for anchor in page["external_anchors"]
+            if LEGAL_LINK_TEXT.search(anchor["text"]) and host_key(anchor["href"]) != host_key(start_url)
+        ]
+        if is_start and legal_links:
+            add_issue(
+                issues, "legal-link-cross-domain", "medium", "trust",
+                "A legal link points to another host.",
+                url, {"links": legal_links[:5]},
+                "Keep the imprint, privacy and terms pages on the same legal entity and host, or explain the relationship; verify the target is not a different business.",
+            )
+
+        alternate_locales = [value for value in page["og_locale_alternates"] if value]
+        if is_start and alternate_locales:
+            alternate_langs = {value.split("_")[0].lower() for value in alternate_locales}
+            hreflang_langs = {
+                item["hreflang"].split("-")[0].lower()
+                for item in page["hreflang"] if item.get("hreflang")
+            }
+            if not (alternate_langs & hreflang_langs):
+                add_issue(
+                    issues, "og-locale-alternate-without-url", "low", "internationalization",
+                    "og:locale:alternate declares a language variant without a crawlable alternate URL.",
+                    url, {"alternates": alternate_locales[:5], "hreflang": page["hreflang"][:5]},
+                    "Add a locale URL and reciprocal hreflang links, or remove the alternate locale claim.",
+                    confidence="likely",
+                )
+
+        if is_start and "header" in page["landmarks_in_main"] and "footer" in page["landmarks_in_main"]:
+            add_issue(
+                issues, "landmark-nesting", "low", "accessibility",
+                "Site header and footer are inside <main>.",
+                url, {"inside_main": page["landmarks_in_main"]},
+                "Move the site header and footer outside <main> so they expose banner and contentinfo landmarks.",
+            )
+
+
     if not page["og"]:
         add_issue(issues, "og-missing", "info" if soft_context else "low", "social", "Keine Open-Graph-Tags.",
                   url, {}, "og:title, og:description, og:image, og:url ergänzen.")
@@ -1172,6 +1456,20 @@ def site_issues(
                       "robots.txt verweist auf eine Sitemap unter einem anderen Host.",
                       start_url, {"sitemap": sitemap_url, "final_host": final_netloc},
                       "Sitemap-Verweis auf den finalen Host umstellen.")
+    if sitemap["urls"]:
+        blocked = [
+            url for url in sitemap["urls"][:500]
+            if not robots.is_allowed(url, user_agent)
+        ]
+        if blocked:
+            add_issue(
+                issues, "sitemap-robots-conflict", "high", "indexing",
+                f"{len(blocked)} sitemap URL(s) are blocked by robots.txt.",
+                start_url, {"blocked": blocked[:10]},
+                "Remove blocked URLs from the sitemap or allow crawling; a noindex on a disallowed URL is invisible to Google.",
+                confidence="confirmed",
+            )
+
     for error in sitemap["errors"]:
         add_issue(issues, "sitemap-invalid", "high", "indexing", "Sitemap konnte nicht gelesen werden.",
                   start_url, {"error": error}, "Sitemap als valides XML mit absoluten URLs ausliefern.")
@@ -1273,6 +1571,42 @@ def not_found_issues(result: dict[str, Any] | None, start_url: str) -> list[dict
                   f"Unbekannte URL liefert HTTP {status} statt 404/410.",
                   start_url, {"status": status},
                   "Statuscode der Fehlerroute korrigieren.", confidence="confirmed")
+    return issues
+
+
+def index_html_issue(start_url: str, fetch_cached) -> list[dict[str, Any]]:
+    """Flag /index.html as a second indexable copy of the homepage."""
+    issues: list[dict[str, Any]] = []
+    parts = urllib.parse.urlsplit(start_url)
+    if (parts.path or "/") not in ("/", ""):
+        return issues
+    index_url = urllib.parse.urlunsplit((parts.scheme, parts.netloc, "/index.html", "", ""))
+    result = fetch_cached(index_url)
+    if result["status"] != 200:
+        return issues
+    final_url = result["final_url"] or index_url
+    if url_key(final_url) != url_key(index_url):
+        return issues
+    parser = PageParser()
+    parser.feed(decode_body(result["body"], result["headers"]))
+    canonical = ""
+    for link in parser.links:
+        if "canonical" in link.get("rel", "").lower() and link.get("href"):
+            canonical = normalize_url(link["href"], final_url)
+            break
+    robots_text = meta_content(parser.metas, "robots") + " " + header(result["headers"], "x-robots-tag")
+    if "noindex" in robots_text.lower():
+        return issues
+    root_url = urllib.parse.urlunsplit((parts.scheme, parts.netloc, "/", "", ""))
+    if canonical and url_key(canonical) == url_key(root_url):
+        return issues
+    add_issue(
+        issues, "index-html-duplicate", "medium", "indexing",
+        "The /index.html URL serves 200 without canonicalizing to /.",
+        index_url, {"final_url": final_url, "canonical": canonical},
+        "Redirect /index.html to / or add a canonical to /; do not serve two indexable copies of the homepage.",
+        confidence="confirmed",
+    )
     return issues
 
 
@@ -1698,6 +2032,10 @@ def main(argv: list[str] | None = None) -> int:
 
     site_issue_list = site_issues(pages, start_url, robots, robots_result, sitemap, llms_status, args.user_agent)
     site_issue_list += host_alias_issues(
+        start_url,
+        lambda url: fetch(url, args.timeout, args.user_agent, max_bytes, args.insecure),
+    )
+    site_issue_list += index_html_issue(
         start_url,
         lambda url: fetch(url, args.timeout, args.user_agent, max_bytes, args.insecure),
     )

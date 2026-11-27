@@ -6,7 +6,7 @@ compatibility: Python 3.10+; optional Google Search Console dependencies
 metadata:
   category: search
   author: johannes3502
-  version: "0.3.1"
+  version: "0.4.0"
   suggest_for:
     filename:
       - "sitemap.xml"
@@ -26,6 +26,14 @@ the code, and optionally tests a real domain.
 
 The research basis is embedded in `references/research/`. Read the relevant
 files before making claims; do not rely on memory for Google rules.
+
+## Research gate
+
+Before scanning, read the files that match the job:
+`references/checklists/{codebase,live,local,trust,ssr}.md` (source review,
+crawl, local business, legal/trust, rendering). State in the report which
+references you used and which checks you did not run. Do not present a
+checklist as complete when it was not read.
 
 ## Modes: review first, apply only after a decision
 
@@ -87,6 +95,9 @@ produce dozens of findings; the user decides what is worth changing.
 - Repository root and the public routes that matter.
 - Is there a real domain? If yes, which origin (http/https, www/non-www)?
 - Business goal, country/language, money pages.
+- Business model: local service business, e-commerce, SaaS, publisher, marketplace?
+- For a local business: service area, locations, Google Business Profile, legal entity.
+- Legal/trust: imprint, privacy, terms, contact, cross-domain legal links.
 - Keyword map (URL → primary intent), if one exists.
 - Is GSC available? Property string and read-only access.
 - Scope: whole repo, one app in a monorepo, one template, one route.
@@ -94,6 +105,16 @@ produce dozens of findings; the user decides what is worth changing.
 
 If the user gives no details, choose safe defaults: review mode, static source
 scan, 25 live pages, depth 2, no login, no GSC. State the assumptions.
+
+## Measurement contract
+
+- State the date, page cap, depth, static HTML vs rendered DOM, and whether
+  GSC or GBP data was used.
+- Word and script counts are per URL and from raw HTML. Never reuse another
+  page's count.
+- Do not compare scores across different scopes or page caps; they are not the
+  same measurement.
+- A crawl is a sample, not an index.
 
 ## Workflow
 
@@ -124,24 +145,17 @@ read `package.json`, the framework config and one representative route.
 
 Known heuristic classes (check before reporting):
 
-- **Next App Router in `src/app`**: routes, nested layouts and route groups
-  `(marketing)` are scoped, not global. Only the root layout is global.
-- **Metadata routes** such as `app/robots.ts`, `app/sitemap.ts` and
-  `app/manifest.ts` are real routes even though there is no `.txt`/`.xml` file.
-- **Built-in 404**: Next, SvelteKit, Nuxt and Remix provide a default 404; a
-  custom `not-found` file is optional.
-- **Inherited metadata**: a page without its own title/description may inherit
-  the root layout default. The scanner reports that as `info`; verify the built
-  HTML before calling it missing.
-- **`"use client"` + static export**: a client component can still be
-  prerendered. With `output: "export"` the finding is `info`; verify `out/`.
-- **Not public routes**: email templates, admin/login shells, account screens
-  and preview pages are marked `private` or skipped. Do not count them as
-  marketing pages.
-- **Astro**: pages often pass `title`/`description` as layout props or read
-  them from a content collection; a missing literal in the page file is
-  `info`, not a defect. Dynamic `<a href={...}>` is rendered HTML and not a
-  broken link.
+- **Next App Router in `src/app`**: nested layouts and route groups are scoped;
+  only the root layout is global. `app/robots.ts`, `app/sitemap.ts` and
+  `app/manifest.ts` are real routes; a default 404 exists, a custom file is optional.
+- **Inherited metadata**: a route may inherit a layout title/description or get
+  it at runtime. The scanner marks that `info`; verify the built HTML.
+- **`"use client"` + static export**: can still be prerendered; with
+  `output: "export"` the finding is `info`; verify `out/`.
+- **Not public**: email templates, admin/login shells, account and preview
+  pages are private or skipped, not marketing pages.
+- **Astro**: metadata passed as layout props/collections and dynamic
+  `<a href={...}>` are `info` or rendered HTML, not defects.
 
 If the scanner reports the wrong framework, 0 routes while routes clearly
 exist, or an empty route inventory in a monorepo, stop and fix the scan root
@@ -195,9 +209,16 @@ public site. Do not present that inventory as a site score.
    them as separate high defects; verify the rendered DOM with a browser
    spot-check and still treat the missing initial HTML as the main risk.
 
-### 2. Map the route and keyword inventory
+### 2. Build the business and coverage inventory
 
-List the public routes and the money pages. If the user has no keyword map,
+Before routes: what does the site sell, where, and to whom? Local, national or
+international? Which pages are money pages? Is there a Google Business Profile
+and a legal entity? For a local business read `references/checklists/local.md`;
+for legal and trust surfaces read `references/checklists/trust.md`. Add a
+coverage ledger to the report: rendering, indexing, on-page, content,
+local/entity, trust/legal, performance, structured data, i18n and events.
+
+Then list the public routes and the money pages. If the user has no keyword map,
 create a proposed one for confirmation:
 
 ```json
@@ -237,6 +258,32 @@ Use `references/research/` as the source of truth. The short version:
   codes, self-canonical per locale, sensible `x-default`.
 - **AI search.** Google says no special files or schema are required;
   `llms.txt` is ignored by Google Search. Do not sell it as a Google SEO fix.
+
+### 3b. Local business, trust and events
+
+For a local business, the Local Pack and entity data can matter more than an
+H1. Verify:
+
+- **NAP/entity**: name, address, phone and hours are identical on the page,
+  footer, imprint, `LocalBusiness` JSON-LD and Google Business Profile (GBP).
+- **Schema**: correct LocalBusiness type; `address`, `telephone`,
+  `openingHoursSpecification`, `geo`, `areaServed`, `sameAs`; no 24/7 claim for
+  locations with other hours.
+- **GBP/citations**: claimed/verified, categories, services, hours, photos,
+  posts, Q&A, reviews; consistent directory listings.
+- **Location/service pages**: unique local proof, directions, staff, service
+  area, internal links; no doorway pages with swapped city names.
+- **Reviews**: genuine, no gating, respond; never invent ratings.
+- **Trust/legal**: imprint, privacy, terms, cancellation and contact pages
+  exist, load and share the legal entity, address and phone with the NAP. A
+  legal link to another domain is a trust finding: verify ownership.
+- **Events**: Google's Event rich result expects one event per dedicated leaf
+  URL. A multi-event `ItemList` on a homepage is not eligible. Check `name`,
+  `startDate`, `location`, a real organizer and a bookable/public event page;
+  otherwise remove the Event markup instead of only refreshing dates.
+
+GBP and citation data is not in the HTML. Mark it as manual/not checked rather
+than guessing.
 
 ### 4. Live test (only with a real domain)
 
@@ -395,7 +442,7 @@ Before publishing or changing the skill:
 
 ```bash
 python "<skill-dir>/scripts/validate_skill.py" "<skill-dir>"
-python -m pytest tests -q   # in the skill repository, not in a target repo
+python -m unittest discover -s tests -v   # in the skill repository, not in a target repo
 python -m py_compile "<skill-dir>/scripts/seo_scan.py"
 python -m py_compile "<skill-dir>/scripts/repo_scan.py"
 python -m py_compile "<skill-dir>/scripts/gsc_quick_wins.py"
@@ -416,6 +463,12 @@ remove false positives before shipping.
 | Public SSR route conflicts with `Disallow: /` | mixed app host (for example a public profile or booking route under `/p/<slug>`) | reconcile robots, meta, `X-Robots-Tag` and canonical; one high finding |
 | `www` alias serves 200 without redirect | canonical host not enforced | `host-alias-200`; require 301 or self-canonical on both hosts |
 | `draft-indexable` on "Draft Mode" | product vocabulary, not a draft page | tightened markers; verify low word count/placeholder context |
+| Local business gets a national-SaaS audit | no GBP/NAP/entity check | read `checklists/local.md`; verify NAP, GBP, imprint and reviews; mark GBP data manual |
+| Event JSON-LD on a homepage/list | not a dedicated leaf page | remove Event markup or create one URL per event; refreshing dates is not enough |
+| `Disallow` treated as deindex | robots blocks crawling, not indexing | make the URL crawlable and use `noindex`, or protect it with auth |
+| A legal link opens another domain | legal entity/trust mismatch | verify ownership; keep imprint/privacy on the same entity or explain it |
+| `hreflang-missing` on a client-only toggle | no alternate URLs exist | report `client-only-i18n`; do not add hreflang |
+| Word/script count from another page | raw HTML measured per URL | re-measure the exact URL and label it as raw-HTML |
 | Repo scan finds 0 routes | unknown framework, monorepo root, generated routes | run on the app root; inspect `package.json`/config; add a route adapter |
 | Next app is called "Pages Router" | app folder under `src/`, or an old scanner | update the scanner; confirm `src/app/**/page.*`; do not trust keyword findings until fixed |
 | A nested layout triggers `global-noindex` | route-group or section layout, not the root | verify the root layout; treat scoped noindex as intentional unless it covers public routes |
@@ -432,43 +485,16 @@ remove false positives before shipping.
 | Context floods with thousands of files | recursive listing over build output | use `rg --files -g '*.tsx'` or list only source dirs; never recurse `out/`, `.next/`, `dist/`, `node_modules/`, `map-data/` |
 | Umlauts look broken | console code page, not the file | check bytes/UTF-8 before reporting; see `references/checklists/codebase.md` |
 
-## Free vs. hosted (not the same thing)
+## Free vs. hosted
 
-This repository is a **developer tool**: a skill + deterministic scanners. It is
-not the hosted product.
-
-- The skill: static source scan, static live crawl, keyword-map checks, GSC
-  quick wins, review/apply workflow.
-- No JS rendering, no SERP data, no backlink index, no scheduled monitoring,
-  no automatic CMS writes.
-- The hosted product (later) may add JS rendering, deeper crawls, scheduling,
-  GSC history, SERP/competitor data and white-label reports.
-
-Do not silently pretend the dev tool has hosted-product data.
+This repository is a developer tool: deterministic scanners plus an agent
+workflow. No JS rendering, SERP data, backlink index, scheduling or automatic
+CMS writes. A hosted product may add those later; do not pretend the dev tool
+has them.
 
 ## References
 
-- `references/research/00-sources.md` — sources, dates, confidence.
-- `references/research/01-search-essentials.md` — eligibility, spam, E-E-A-T.
-- `references/research/02-rendering.md` — SSR/CSR/SSG, hydration, framework
-  pitfalls.
-- `references/research/03-indexing.md` — robots, canonical, sitemaps, status
-  codes, mobile-first.
-- `references/research/04-onpage-keywords.md` — intent, titles, headings,
-  keywords, links, cannibalization.
-- `references/research/05-content-eeat.md` — helpful content and trust.
-- `references/research/06-performance.md` — Core Web Vitals.
-- `references/research/07-structured-data.md` — JSON-LD and schema types.
-- `references/research/08-internationalization.md` — hreflang and locales.
-- `references/research/09-ai-search.md` — AI features; `llms.txt` correction.
-- `references/research/10-frameworks.md` — where SEO lives in each stack.
-- `references/research/11-measurement.md` — GSC, field data, evidence.
-- `references/checklists/codebase.md` — review checklist.
-- `references/checklists/live.md` — live-domain checklist.
-- `references/checklists/ssr.md` — rendering review checklist.
-- `references/checklists/keywords.md` — keyword map and on-page review.
-- `references/rules.md` — live rule catalog.
-- `references/repo-rules.md` — codebase rule catalog.
-- `references/report-template.md` — report skeleton and tone.
-- `references/gsc.md` — OAuth, scopes, quotas, API limits.
+- `references/research/00-sources.md` … `11-measurement.md` — sources and topic notes.
+- `references/checklists/codebase.md`, `live.md`, `ssr.md`, `keywords.md`, `local.md`, `trust.md`.
+- `references/rules.md`, `repo-rules.md`, `report-template.md`, `gsc.md`.
 - `evals/evals.json` — representative prompts and expected outcomes.

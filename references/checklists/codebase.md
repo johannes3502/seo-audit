@@ -76,6 +76,10 @@ Use this after `repo_scan.py`, before editing. Mark each item `confirmed`,
 - [ ] Canonical, sitemap URLs and robots `Sitemap:` line use the same final
       host; none of them points at a host that 301s elsewhere.
 - [ ] CDN/firewall does not block Googlebot or required assets.
+- [ ] No two public routes share one hardcoded canonical.
+- [ ] `Disallow` paths are not public routes and do not hide a `noindex`.
+- [ ] Sitemap `lastmod` is the content modification date, not the build time.
+- [ ] Sitemap URLs are crawlable (no `robots.txt` conflict).
 
 ## 4. Content and keywords
 
@@ -106,6 +110,10 @@ Use this after `repo_scan.py`, before editing. Mark each item `confirmed`,
 - [ ] Required fields for the chosen type are present.
 - [ ] Markup values match visible content (price, availability, reviews, FAQ).
 - [ ] Event markup is fresh: past `endDate` is not still `EventScheduled`.
+- [ ] Event markup is a single event on its own leaf URL, not a homepage/list
+      `ItemList`; `name`, `startDate`, `location` and organizer are real.
+- [ ] `LocalBusiness` has name, address, telephone, hours and `sameAs`, matching
+      the visible NAP and legal entity; no blanket 24/7 claim.
 - [ ] No fake reviews/ratings or fabricated author data.
 - [ ] Structured data is present on mobile and desktop.
 

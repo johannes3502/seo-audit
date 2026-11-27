@@ -45,6 +45,26 @@
       "id": 9,
       "prompt": "Audit this umbrella repo with apps/web, apps/shop, services/api, docs/ and a local tools/preview/ app. There are multiple public apps and internal dashboards.",
       "expected_output": "The agent first builds an app/scope inventory from .gitmodules and the agent docs, scans each public app root separately, does not score the umbrella root, treats docs/ as keyword/strategy context, tools/preview/ as a local non-public tool and internal noindex apps as indexability-only, and pairs frontends with their backends and live domains. It reports a null/not-applicable score for non-public roots and verified findings per public surface."
+    },
+    {
+      "id": 10,
+      "prompt": "We rent equipment in three cities and most of our leads come from Google Maps. Audit our site.",
+      "expected_output": "The agent reads references/checklists/local.md before scanning, treats this as a local business (not a national SaaS), verifies NAP across page/footer/imprint/schema and marks GBP/citations/reviews as manual unless access is provided, checks LocalBusiness fields and per-location hours, and reports the Local Pack/entity gap separately from technical SEO. It does not infer GBP categories, review counts or rankings."
+    },
+    {
+      "id": 11,
+      "prompt": "Our homepage has JSON-LD for five upcoming events. Is that enough for event rich results?",
+      "expected_output": "The agent explains that Google's Event rich result expects one event per dedicated leaf URL; a multi-event ItemList on a homepage is not eligible. It checks name/startDate/location, organizer, visibility and bookability, recommends moving each event to its own URL or removing the markup, and does not present a date refresh as the fix."
+    },
+    {
+      "id": 12,
+      "prompt": "robots.txt disallows /preview and /account, so those pages are not indexed, right?",
+      "expected_output": "The agent corrects the premise: Disallow blocks crawling, not indexing; a noindex on a disallowed URL is invisible to Google and external links can still index the URL. It checks canonical/noindex inheritance, sitemap/robots conflicts and recommends allowing the URL for a readable noindex or using authentication."
+    },
+    {
+      "id": 13,
+      "prompt": "Review this repo and tell me what you did not check.",
+      "expected_output": "The agent reads the matching reference checklists, states which files it used, produces a coverage ledger (rendering, indexing, on-page, content, local/entity, trust/legal, performance, structured data, i18n, events) and lists unchecked items such as GBP, citations, field CWV or JS-rendered routes. It does not claim a complete audit from a partial scan."
     }
   ]
 }

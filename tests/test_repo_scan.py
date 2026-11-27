@@ -348,6 +348,63 @@ export default function Home() {
         report = self.scan()
         self.assertNotIn("draft-indexable", {issue["rule"] for issue in report["issues"]})
 
+    def test_canonical_shared_across_routes(self) -> None:
+        write(self.root, "package.json", json.dumps({"dependencies": {"next": "15", "react": "19"}}))
+        shared = "https://example.com/"
+        write(self.root, "app/page.tsx", f"""
+export const metadata = {{ title: "Home", alternates: {{ canonical: "{shared}" }} }};
+export default function P() {{ return <h1>Home</h1>; }}
+""")
+        write(self.root, "app/about/page.tsx", f"""
+export const metadata = {{ title: "About", alternates: {{ canonical: "{shared}" }} }};
+export default function P() {{ return <h1>About</h1>; }}
+""")
+        report = self.scan()
+        self.assertIn("canonical-shared", {issue["rule"] for issue in report["issues"]})
+
+    def test_sitemap_lastmod_build_time(self) -> None:
+        write(self.root, "package.json", json.dumps({"dependencies": {"vite": "7", "react": "19"}}))
+        write(self.root, "vite.config.js", "export default {};")
+        write(self.root, "index.html", '<div id="root"></div><script type="module" src="/src/main.jsx"></script>')
+        write(self.root, "src/App.jsx", "export default function App(){ return <main><h1>Home</h1></main>; }")
+        write(self.root, "scripts/generate-sitemap.js", "const urls = [{ loc: '/', lastmod: new Date().toISOString() }];\n")
+        report = self.scan()
+        self.assertIn("sitemap-lastmod-build-time", {issue["rule"] for issue in report["issues"]})
+
+    def test_robots_disallow_public_route(self) -> None:
+        write(self.root, "package.json", json.dumps({"dependencies": {"next": "15", "react": "19"}}))
+        write(self.root, "app/layout.tsx", """export const metadata = { title: "Site" };
+export default function Layout({ children }) { return <html><body>{children}</body></html>; }""")
+        write(self.root, "app/page.tsx", """export const metadata = { title: "Home", description: "Home page." };
+export default function P(){ return <h1>Home</h1>; }""")
+        write(self.root, "app/rental/page.tsx", """export const metadata = { title: "Rental", description: "Rent equipment." };
+export default function P(){ return <h1>Rental</h1>; }""")
+        write(self.root, "public/robots.txt", "User-agent: *\nDisallow: /rental\n")
+        report = self.scan()
+        self.assertIn("robots-blocks-public-route", {issue["rule"] for issue in report["issues"]})
+
+    def test_robots_disallow_noindex(self) -> None:
+        write(self.root, "package.json", json.dumps({"dependencies": {"next": "15", "react": "19"}}))
+        write(self.root, "app/layout.tsx", """export const metadata = { title: "Site" };
+export default function Layout({ children }) { return <html><body>{children}</body></html>; }""")
+        write(self.root, "app/preview/page.tsx", """export const metadata = { title: "Preview", robots: { index: false } };
+export default function P(){ return <h1>Preview</h1>; }""")
+        write(self.root, "public/robots.txt", "User-agent: *\nDisallow: /preview\n")
+        report = self.scan()
+        self.assertIn("robots-blocks-noindex", {issue["rule"] for issue in report["issues"]})
+
+    def test_client_only_i18n_is_not_hreflang_missing(self) -> None:
+        write(self.root, "package.json", json.dumps({"dependencies": {"vite": "7", "react": "19"}}))
+        write(self.root, "vite.config.js", "export default {};")
+        write(self.root, "index.html", '<div id="root"></div><script type="module" src="/src/main.jsx"></script>')
+        write(self.root, "src/App.jsx", "export default function App(){ return <main><h1>Start</h1></main>; }")
+        write(self.root, "src/locales/de.json", "{}")
+        write(self.root, "src/locales/en.json", "{}")
+        report = self.scan()
+        rules = {issue["rule"] for issue in report["issues"]}
+        self.assertIn("client-only-i18n", rules)
+        self.assertNotIn("hreflang-missing", rules)
+
 
 if __name__ == "__main__":
     unittest.main()

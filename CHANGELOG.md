@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.4.0 — 2026-11-27
+
+Feedback-driven audit expansion: local business/entity, trust/legal and event
+eligibility, plus measurement and evidence discipline.
+
+- **Local business and entity coverage**: new `references/checklists/local.md`
+  (NAP, GBP, LocalBusiness schema, location/service pages, reviews, citations,
+  events) and `references/checklists/trust.md` (imprint, privacy, terms,
+  contact, cross-domain legal links).
+- **Research gate and coverage ledger**: the agent must read the matching
+  checklist and state which references were used, which areas were checked and
+  what was not checked.
+- **Measurement contract**: page cap, depth, date, static HTML vs rendered DOM,
+  per-URL word/script counts and no cross-scope score comparisons.
+- **Live rules**: `event-not-leaf-page`, `event-fields-missing`,
+  `event-organizer-cross-host`, `localbusiness-nap-incomplete`,
+  `localbusiness-telephone-missing`, `localbusiness-hours-missing`,
+  `localbusiness-address-not-visible`, `localbusiness-sameas-missing`,
+  `legal-link-cross-domain`, `og-locale-alternate-without-url`,
+  `landmark-nesting`, `sitemap-robots-conflict`, `index-html-duplicate`.
+- **Source rules**: `canonical-shared`, `sitemap-lastmod-build-time`,
+  `robots-blocks-noindex`, `robots-blocks-public-route`, `client-only-i18n`,
+  `schema-event-fields`, `schema-event-list`,
+  `schema-localbusiness-recommended`.
+- **False-positive fix**: a client-only language switch with locale files but
+  no locale URLs is `client-only-i18n` (info), not `hreflang-missing`.
+- **Docs**: new checklists, report template coverage ledger, local/trust/event
+  sections, README feature list, rule catalogs and eval prompts.
+- 36 tests pass; validator and compile checks pass.
+
 ## 0.3.1 — 2026-11-26
 
 - Fixed UTF-8 text that had been double-encoded in `SKILL.md`, the example

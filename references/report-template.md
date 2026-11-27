@@ -27,6 +27,26 @@ aligned with its target intent?}
 
 **Mode:** Review (no edits yet) or Apply (batches approved).
 
+**Business context:** {local/regional/national/e-commerce/SaaS} | {countries/languages} |
+{GBP? legal entity?} | {static HTML, page cap, date}
+
+## 0b. Coverage ledger
+
+| Area | Checked? | Evidence | Reference |
+|---|---|---|---|
+| Rendering | yes/no/partial | raw HTML, framework config | `ssr.md` |
+| Indexing | ... | status, canonical, robots, sitemap | `codebase.md` / `live.md` |
+| On-page | ... | title/H1/description | `codebase.md` |
+| Content/E-E-A-T | ... | content sample | `codebase.md` |
+| Local/entity | ... | NAP, schema, GBP (manual) | `local.md` |
+| Trust/legal | ... | imprint, privacy, contact | `trust.md` |
+| Performance | ... | lab/field, TTFB | `live.md` |
+| Structured data | ... | JSON-LD, event eligibility | `local.md` |
+| i18n | ... | locale URLs, hreflang | `live.md` |
+| Events | ... | leaf URL, organizer, dates | `local.md` |
+
+An unchecked area is not a clean area. State why it was not checked.
+
 ## 0. Scope and app inventory (umbrella/monorepo)
 
 | Surface | Path | Type | Public? | Domain | Evidence | Score? |
@@ -53,6 +73,9 @@ Rules:
 | Metadata | ... | file:line | ... |
 | Indexing | ... | file:line | ... |
 | Keywords | ... | route + keyword map | ... |
+| Local/entity | ... | NAP, schema, GBP (manual) | ... |
+| Trust/legal | ... | imprint, privacy, contact | ... |
+| Events | ... | leaf URL, organizer, dates | ... |
 
 ## 2. What the live site says (if tested)
 
@@ -61,6 +84,15 @@ Rules:
 - soft-404 result
 - headers/CDN/redirects
 - differences from the code expectation
+
+## 2b. Local, trust and events (if applicable)
+
+- NAP on page/footer/imprint/schema/GBP; list the exact values checked.
+- LocalBusiness type and fields; GBP/citations marked manual/not checked.
+- Location and service-area pages: unique content, links, canonicals.
+- Legal links: same host/entity; cross-domain links verified.
+- Events: one leaf URL per event; list-page markup is not eligible; expired
+  events removed or marked cancelled/postponed.
 
 ## 3. Top fixes
 
@@ -147,6 +179,13 @@ Label every GSC number with its date range. Do not extrapolate traffic.
 - no backlink index, no rank tracking, no Google scraping
 - GSC: read-only, date range, row limit
 - what could change the conclusion (JS, personalization, bot protection)
+
+## 13. What was not checked
+
+- GBP, citations, reviews and rankings (manual)
+- JS-rendered DOM for routes not spot-checked
+- GSC data outside the stated range
+- any check marked `no` or `partial` in the coverage ledger
 ```
 
 ## Tone

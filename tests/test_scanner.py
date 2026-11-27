@@ -95,6 +95,21 @@ class QuietHandler(SimpleHTTPRequestHandler):
         pass
 
 
+def make_page(html: str, url: str = "https://example.com/") -> dict:
+    parser = seo_scan.PageParser()
+    parser.feed(html)
+    result = {
+        "body": html.encode("utf-8"),
+        "headers": {"content-type": "text/html; charset=utf-8"},
+        "status": 200,
+        "final_url": url,
+        "response_time_ms": 100,
+        "chain": [],
+        "error": None,
+    }
+    return seo_scan.build_page(url, result, parser, url)
+
+
 class ScannerTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -225,6 +240,99 @@ class ScannerTest(unittest.TestCase):
         self.assertFalse(robots.is_allowed("https://example.com/private/x", "test"))
         self.assertTrue(robots.is_allowed("https://example.com/private/ok", "test"))
         self.assertTrue(robots.is_allowed("https://example.com/public", "test"))
+
+    def test_event_list_is_not_a_leaf_page(self) -> None:
+        html = """<!doctype html><html lang="en"><head><title>Events</title>
+        <meta name="description" content="Upcoming events."></head><body>
+        <h1>Events</h1>
+        <script type="application/ld+json">
+        {"@context":"https://schema.org","@type":"ItemList","itemListElement":[
+          {"@type":"Event","name":"First","startDate":"2027-01-01","location":{"@type":"Place","name":"Hall"}},
+          {"@type":"Event","name":"Second","startDate":"2027-02-01","location":{"@type":"Place","name":"Hall"}}
+        ]}
+        </script></body></html>"""
+        page = make_page(html)
+        rules = {issue["rule"] for issue in seo_scan.page_issues(page, "https://example.com/")}
+        self.assertIn("event-not-leaf-page", rules)
+
+    def test_localbusiness_nap_checks(self) -> None:
+        schema = {
+            "@context": "https://schema.org",
+            "@type": "LocalBusiness",
+            "name": "Example Rentals",
+            "address": {
+                "@type": "PostalAddress",
+                "streetAddress": "Main Street 1",
+                "postalCode": "12345",
+                "addressLocality": "Springfield",
+            },
+        }
+        html = f"""<!doctype html><html lang="en"><head><title>Rentals</title>
+        <meta name="description" content="Rent equipment in Springfield."></head><body>
+        <h1>Rentals</h1><p>Main Street 1, 12345 Springfield</p>
+        <script type="application/ld+json">{json.dumps(schema)}</script>
+        </body></html>"""
+        page = make_page(html)
+        rules = {issue["rule"] for issue in seo_scan.page_issues(page, "https://example.com/")}
+        self.assertIn("localbusiness-telephone-missing", rules)
+        self.assertIn("localbusiness-hours-missing", rules)
+        self.assertNotIn("localbusiness-address-not-visible", rules)
+        self.assertNotIn("localbusiness-nap-incomplete", rules)
+
+    def test_legal_link_cross_domain(self) -> None:
+        html = """<!doctype html><html lang="en"><head><title>Rentals</title></head>
+        <body><h1>Rentals</h1><a href="https://other.example/imprint">Impressum</a></body></html>"""
+        page = make_page(html)
+        rules = {issue["rule"] for issue in seo_scan.page_issues(page, "https://example.com/")}
+        self.assertIn("legal-link-cross-domain", rules)
+
+    def test_landmark_nesting(self) -> None:
+        html = """<!doctype html><html lang="en"><head><title>Rentals</title></head>
+        <body><main><header>Site</header><h1>Rentals</h1><footer>Footer</footer></main></body></html>"""
+        page = make_page(html)
+        rules = {issue["rule"] for issue in seo_scan.page_issues(page, "https://example.com/")}
+        self.assertIn("landmark-nesting", rules)
+
+    def test_og_locale_alternate_without_url(self) -> None:
+        html = """<!doctype html><html lang="de"><head><title>Mieten</title>
+        <meta property="og:locale:alternate" content="en_US"></head>
+        <body><h1>Mieten</h1></body></html>"""
+        page = make_page(html)
+        rules = {issue["rule"] for issue in seo_scan.page_issues(page, "https://example.com/")}
+        self.assertIn("og-locale-alternate-without-url", rules)
+
+    def test_index_html_duplicate(self) -> None:
+        def fake(_url: str) -> dict:
+            return {
+                "status": 200,
+                "final_url": "https://example.com/index.html",
+                "body": b"<html><head><title>Home</title></head><body>Home</body></html>",
+                "headers": {"content-type": "text/html"},
+            }
+        issues = seo_scan.index_html_issue("https://example.com/", fake)
+        self.assertEqual(issues[0]["rule"], "index-html-duplicate")
+
+        def canonical(_url: str) -> dict:
+            return {
+                "status": 200,
+                "final_url": "https://example.com/index.html",
+                "body": b'<html><head><link rel="canonical" href="https://example.com/"></head><body></body></html>',
+                "headers": {"content-type": "text/html"},
+            }
+        self.assertEqual(seo_scan.index_html_issue("https://example.com/", canonical), [])
+
+    def test_sitemap_robots_conflict(self) -> None:
+        robots = seo_scan.Robots("User-agent: *\nDisallow: /private\n")
+        sitemap = {
+            "urls": ["https://example.com/private/page"],
+            "errors": [],
+            "sitemaps": [],
+        }
+        issues = seo_scan.site_issues(
+            [], "https://example.com/", robots, {"status": 200, "error": None},
+            sitemap, 200, "test",
+        )
+        self.assertIn("sitemap-robots-conflict", {issue["rule"] for issue in issues})
 
     def test_url_normalization_and_skip(self) -> None:
         self.assertEqual(

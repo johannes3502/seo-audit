@@ -85,6 +85,19 @@ the source; `likely` = framework behavior or inheritance may change the result;
 | `keyword-stuffing` | low | repeated target in title | Write for people | confirmed |
 | `keyword-cannibalization` | high | same target on >1 URL | Choose one owner | likely |
 
+## Local, trust and events (v0.4)
+
+| ID | Severity | Evidence | Fix | Confidence |
+|---|---|---|---|---|
+| `canonical-shared` | medium | 2+ public routes share one canonical | generate a self-canonical per route | likely |
+| `sitemap-lastmod-build-time` | low | `lastmod` uses `new Date()`/`Date.now()` | use the page's real modification date | likely |
+| `robots-blocks-noindex` | medium | `Disallow` path also has noindex | allow crawling so noindex is readable, or use auth | confirmed |
+| `robots-blocks-public-route` | high | public route under `Disallow` | allow it or add noindex; Disallow is not deindexing | confirmed |
+| `client-only-i18n` | info | locale files/switcher, no locale URLs | add locale routes first; do not add hreflang yet | confirmed |
+| `schema-event-fields` | medium | Event missing name/startDate/location | add only fields that match the visible event | likely |
+| `schema-event-list` | medium | ItemList contains Events | one leaf URL per event, or remove Event markup | likely |
+| `schema-localbusiness-recommended` | low | missing phone/hours/sameAs | add real NAP data and verified profiles | likely |
+
 ## Adding a rule
 
 1. Pick a stable kebab-case ID.

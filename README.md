@@ -10,7 +10,7 @@ implements approved fixes.
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Agent Skills](https://img.shields.io/badge/agent--skills-compatible-6f42c1.svg)](https://agentskills.io/)
 
-> Status: `v0.3.1` — a developer tool, not a hosted SEO product. No API key, no
+> Status: `v0.4.0` — a developer tool, not a hosted SEO product. No API key, no
 > cloud account, no black-box score.
 
 ## Who it is for
@@ -122,6 +122,10 @@ A dependency-free source scanner. It detects:
 - JSON-LD syntax and obvious missing fields
 - hreflang configuration and invalid codes
 - keyword-map coverage and cannibalization candidates
+- canonical values shared across routes, sitemap `lastmod` build stamps and
+  robots `Disallow` paths that hide a `noindex` or block a public route
+- LocalBusiness and Event schema fields, including Event lists that cannot be
+  a rich result
 
 Keyword map (optional):
 
@@ -145,8 +149,25 @@ Only when you give it a real domain. It is a static HTML crawler that checks:
 - internal links, images, JSON-LD, mixed content and security headers
 - response time, CSR shells and hreflang
 - an unknown-URL soft-404 probe
+- `/index.html` duplicates, legal links to another host, LocalBusiness NAP,
+  Event eligibility and header/footer landmark nesting
 
 It respects `robots.txt`, caps pages and never crawls behind a login.
+
+### Local business, trust and events
+
+A local business needs more than a homepage H1. The review covers:
+
+- NAP consistency across the page, footer, imprint, `LocalBusiness` schema and
+  Google Business Profile (GBP)
+- schema fields, opening hours, `sameAs`, location/service pages and reviews
+- trust surfaces: imprint, privacy, terms, contact and cross-domain legal links
+- Event eligibility: one dedicated leaf URL per event, a real organizer and a
+  public/bookable event page; a multi-event `ItemList` on a homepage is not
+  eligible
+
+GBP, citation and review data is not in the HTML. Those checks are marked
+`manual` or `not checked`, never guessed.
 
 ### Review, then apply
 
@@ -204,7 +225,8 @@ python "$SKILL/scripts/gsc_quick_wins.py" \
 This is a developer tool, not the hosted product.
 
 - No JavaScript rendering in the scanners; verify SSR/CSR separately.
-- No backlink index, keyword volumes or rank tracking.
+- No backlink index, keyword volumes, rank tracking, GBP data or citations;
+  those checks are manual or use another tool.
 - No field Core Web Vitals; use CrUX/PSI separately.
 - No automatic code edits from a script; the agent implements approved batches.
 - No guarantee that a page is indexed or ranked.
@@ -222,6 +244,8 @@ references/
   checklists/live.md
   checklists/ssr.md
   checklists/keywords.md
+  checklists/local.md
+  checklists/trust.md
   rules.md
   repo-rules.md
   report-template.md
@@ -238,6 +262,12 @@ Corrections that matter:
 - Meta descriptions are not a ranking factor.
 - A crawl is not an index; a Lighthouse score is not a field Core Web Vitals
   pass.
+- `Disallow` blocks crawling, not indexing. A `noindex` on a disallowed URL is
+  invisible to Google.
+- `hreflang` needs crawlable alternate URLs. A client-only language toggle is
+  not a locale version.
+- Event rich results need one dedicated page per event. A homepage `ItemList`
+  is not eligible.
 
 ## Repository layout
 
